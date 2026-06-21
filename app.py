@@ -2,10 +2,12 @@ import webbrowser
 import threading
 import time
 from flask import Flask, render_template, jsonify, request
-from mpmath import re
+import logging
 from kontroller import pdf_upload, ambil_gambar, logika_proses_halaman, hapus_cache, initiate
 
 app = Flask(__name__)
+log = logging.getLogger('werkzeug')
+log.addHandler(logging.NullHandler())
 
 # Route utama untuk menampilkan UI
 @app.route('/')
@@ -62,9 +64,11 @@ def ambil_gambar_halaman(angka_halaman):
 @app.route('/proses-halaman', methods=['POST'])
 def proses_halaman():
 
+    global local_translation
+
     data = request.json
     nomor_halaman = data.get('halaman')
-    is_local = data.get('local_translation')
+    is_local = data.get('local_translation', local_translation)
 
     local = cek_lang(is_local)
     hasil = logika_proses_halaman(nomor_halaman, doc_aktif, local)
@@ -83,10 +87,8 @@ def reset_dokumen():
 def cek_lang(is_local):
     global local_translation
 
-    is_changed = True if is_local != local_translation else False
-
-    if is_changed:
-        print(f"switch to [front : {is_local}, back : {local_translation}]")
+    if is_local != local_translation:
+        print(f"switch to {"lokal machine" if is_local else "Google Translate"}")
         hapus_cache()
         local_translation = is_local
         return local_translation

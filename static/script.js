@@ -2,14 +2,20 @@ const panelPdf = document.getElementById("panel-pdf");
 const pageIndicator = document.getElementById("page-indicator");
 const outputTeks = document.getElementById("output-teks");
 const localTranslationCheckbox = document.getElementById('local-translation-checkbox');
-let isLocalTranslationEnabled = true;
+
+let isLocalTranslationEnabled = localTranslationCheckbox ? localTranslationCheckbox.checked : true;
 let halamanSekarang = 1;
 let currentPDF = null;
 let isJumpingPage = false;
 let totalHalamanGlobal = 0;
 
 if (localTranslationCheckbox) {
-  isLocalTranslationEnabled = localTranslationCheckbox.checked;
+    localTranslationCheckbox.addEventListener('change', () => {
+        isLocalTranslationEnabled = localTranslationCheckbox.checked;
+        if (pdfContainer.style.display !== 'none' && !isJumpingPage) {
+            ambilTerjemahan(halamanSekarang);
+        }
+    });
 }
 
 const observerGambar = new IntersectionObserver((entries, observer) => {
@@ -78,13 +84,15 @@ panelPdf.addEventListener("scroll", () => {
     if (pageInView !== halamanSekarang) {
         halamanSekarang = pageInView;
         document.getElementById('page-indicator').innerText = halamanSekarang;
+        // Panggil ambilTerjemahan hanya jika checkbox tercentang atau jika kita ingin selalu fetch ulang
         ambilTerjemahan(halamanSekarang);
     }
 });
 
 // Fungsi AJAX Fetch untuk berkomunikasi dengan app.py Flask
 async function ambilTerjemahan(nomorHalaman) {
-    outputTeks.innerText = "Menerjemahkan halaman... Mohon tunggu...";
+    const outputTeks = document.getElementById('output-teks');
+    outputTeks.innerHTML = "<em>Menerjemahkan halaman... Mohon tunggu...</em>";
 
     try {
         const response = await fetch("/proses-halaman", {
@@ -93,10 +101,15 @@ async function ambilTerjemahan(nomorHalaman) {
             body: JSON.stringify({ halaman: nomorHalaman, local_translation: isLocalTranslationEnabled }),
         });
         const data = await response.json();
-        outputTeks.innerText = data.terjemahan;
+
+        if (data.status === true) {
+            outputTeks.innerHTML = data.terjemahan;
+        } else {
+            outputTeks.innerHTML = `<span style="color:red;">Gagal: ${data.message || 'Terjadi kesalahan sistem.'}</span>`;
+        }
     } catch (error) {
-        outputTeks.innerText = "Gagal mengambil terjemahan.";
-        console.error(error);
+        outputTeks.innerHTML = "<span style='color:red;'>Gagal menghubungkan ke server lokal.</span>";
+        console.error("Error Fetch Terjemahan:", error);
     }
 }
 
@@ -199,31 +212,6 @@ async function muatGambarHalaman(nomorHalaman, elemenInduk) {
     }
 }
 
-async function ambilTerjemahan(nomorHalaman) {
-    const outputTeks = document.getElementById('output-teks');
-    outputTeks.innerHTML = "<em>Menerjemahkan halaman... Mohon tunggu...</em>";
-
-    try {
-        const response = await fetch('/proses-halaman', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ halaman: nomorHalaman })
-        });
-        const data = await response.json();
-
-        // Menggunakan pengecekan boolean true sesuai preferensi Anda
-        if (data.status === true) {
-            outputTeks.innerHTML = data.terjemahan;
-        } else {
-            outputTeks.innerHTML = `<span style="color:red;">Gagal: ${data.message || 'Terjadi kesalahan sistem.'}</span>`;
-        }
-    } catch (error) {
-        outputTeks.innerHTML = "<span style='color:red;'>Gagal menghubungkan ke server lokal.</span>";
-        console.error("Error Fetch Terjemahan:", error);
-    }
-}
-
-
 function lompatKeHalaman(targetPage) {
     const inputHalaman = document.getElementById('input-halaman');
     const targetElement = document.querySelector(`.pdf-page-mock[data-page="${targetPage}"]`);
@@ -295,12 +283,5 @@ if (btnExit) {
                     alert("Gagal mematikan server secara otomatis.");
                 });
         }
-    });
-}
-
-if (localTranslationCheckbox) {
-    localTranslationCheckbox.addEventListener('change', () => {
-      isLocalTranslationEnabled = localTranslationCheckbox.checked;
-      ambilTerjemahan(halamanSekarang);
     });
 }

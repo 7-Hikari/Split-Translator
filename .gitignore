@@ -1,0 +1,10 @@
+*
+!.gitignore
+!app.py
+!kontroller.py
+!requirements.txt
+!templates/
+!static/
+!index.html
+!style.css
+!script.js

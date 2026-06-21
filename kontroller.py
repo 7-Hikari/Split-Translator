@@ -2,10 +2,8 @@ from pathlib import Path
 import shutil
 import fitz
 import base64
-import io
 import os
 import asyncio
-from PIL import Image
 from deep_translator import GoogleTranslator
 
 # --- IMPORT WINDOWS OCR ---
@@ -20,28 +18,38 @@ os.environ["XDG_DATA_HOME"] = str(MODEL_PATH / "data")
 os.environ["XDG_CONFIG_HOME"] = str(MODEL_PATH / "config")
 os.environ["XDG_CACHE_HOME"] = str(MODEL_PATH / "cache")
 
-import argostranslate.package as package
 import argostranslate.translate
 
+def get_language_keys():
+    return GoogleTranslator().get_supported_languages(as_dict=True)
+
 def initiate():
+    import argostranslate.package as package
+
     installed_packages = package.get_installed_packages()
     if installed_packages:
+        print("Server berjalan di http://127.0.0.1:5000")
+        buka_browser()
         return
     else:
-        print("mengunduh paket terjemahan lokal [en -> id]")
+        print("mengunduh paket terjemahan lokal [en -> id]...")
         try:
             package.update_package_index()
             available_pack = package.get_available_packages()
 
+            print("menelusuri paket yang tersedia...")
             pack_en_id = next(filter(lambda p: p.from_code == 'en' and p.to_code == 'id', available_pack), None)
-
+            print("mengunduh...")
             if pack_en_id:
                 package.install_from_path(pack_en_id.download())
                 print("paket terjemahan lokal [en -> id] telah siap")
         except Exception as e:
             print(f"Gagal mengunduh paket terjemahan lokal : {e}")
 
+    print("Membersihkan cache...")
     shutil.rmtree(str(MODEL_PATH / "cache"))
+    print("Server berjalan di http://127.0.0.1:5000")
+    buka_browser()
 
 def pdf_upload(file):
     try:
@@ -50,7 +58,7 @@ def pdf_upload(file):
         total_halaman = len(doc_aktif)
         return {'status': True, 'doc_aktif': doc_aktif, 'total_halaman': total_halaman}
     except Exception as e:
-        return {'status': False, 'message': str(e)}
+        return {'status': False, 'message': "[PDF upload] " + str(e)}
 
 def ambil_gambar(doc_aktif, angka_halaman):
     try:
@@ -62,7 +70,7 @@ def ambil_gambar(doc_aktif, angka_halaman):
         encoded_img = base64.b64encode(img_data).decode('utf-8')
         return {'status': True, 'gambar_base64': f"data:image/png;base64,{encoded_img}"}
     except Exception as e:
-        return {'status': False, 'message': str(e)}
+        return {'status': False, 'message': "[Ambil gambar] " + str(e)}
 
 def _jalankan_windows_ocr(img_bytes):
     async def async_ocr():
@@ -97,7 +105,7 @@ def _jalankan_windows_ocr(img_bytes):
 
     return asyncio.run(async_ocr())
 
-def logika_proses_halaman(nomor_halaman, doc_aktif, is_local):
+def logika_proses_halaman(nomor_halaman, doc_aktif, lang, GoogleTr = False):
     global cache
 
     if nomor_halaman in cache:
@@ -121,17 +129,26 @@ def logika_proses_halaman(nomor_halaman, doc_aktif, is_local):
 
         teks = text[:4500]
 
-        if is_local:
+        if is_local(lang) and not GoogleTr:
             teks_terjemahan = argostranslate.translate.translate(q=teks, from_code='en', to_code='id')
         else:
-            teks_terjemahan = GoogleTranslator(source='auto', target='id').translate(teks)
+            teks_terjemahan = GoogleTranslator(source=lang['src'], target=lang['dst']).translate(teks)
 
         html = teks_terjemahan.replace('\n', '<br>')
         cache[nomor_halaman] = html
 
         return {'status': True, 'halaman': nomor_halaman, 'terjemahan': html}
     except Exception as e:
-        return {'status': False, 'message': str(e)}
+        return {'status': False, 'message': "[Proses halaman] " + str(e)}
+
+def buka_browser():
+    import webbrowser
+    import time
+    time.sleep(0.5)
+    webbrowser.open("http://127.0.0.1:5000")
+
+def is_local(lang) -> bool:
+    return lang['src'] == 'en' and lang['dst'] == 'id'
 
 def hapus_cache():
     global cache

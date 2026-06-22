@@ -4,10 +4,9 @@ import sys
 import os
 from flask import Flask, render_template, jsonify, request
 import logging
+import kontroller as ctrl
 
 print("Memuat terjemahan lokal. Mohon tunggu...", flush=True)
-
-from kontroller import pdf_upload, ambil_gambar, logika_proses_halaman, hapus_cache, initiate, get_language_keys, is_local
 
 def get_resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -32,7 +31,7 @@ def index():
 
 @app.route('/languages')
 def get_languages():
-    return jsonify({'status': True, 'languages': get_language_keys()})
+    return jsonify({'status': True, 'languages': ctrl.get_language_keys()})
 
 @app.route('/upload-pdf', methods=['POST'])
 def upload_pdf():
@@ -49,11 +48,11 @@ def upload_pdf():
         return jsonify({'status': False, 'message': 'Nama file kosong'})
 
     if file and file.filename.endswith('.pdf'):
-        hasil = pdf_upload(file)
+        hasil = ctrl.pdf_upload(file)
 
         if hasil['status']:
             doc_aktif = hasil['doc_aktif']
-            hapus_cache()
+            ctrl.hapus_cache()
 
             return jsonify({
                 'status': True,
@@ -71,7 +70,8 @@ def ambil_gambar_halaman(angka_halaman):
     if doc_aktif is None:
         return jsonify({'status': False, 'message': 'Belum ada dokumen yang dibuka'}), 400
 
-    hasil = ambil_gambar(doc_aktif, angka_halaman)
+    hasil = ctrl.ambil_gambar(doc_aktif, angka_halaman)
+
     if hasil['status']:
         return jsonify(hasil)
     else:
@@ -94,7 +94,7 @@ def proses_halaman():
 
     lang = cek_lang({'src': src, 'dst': dst})
 
-    hasil = logika_proses_halaman(nomor_halaman, doc_aktif, lang, GoogleTr)
+    hasil = ctrl.memproses_halaman(nomor_halaman, doc_aktif, lang, GoogleTr)
 
     if hasil['status']:
         return jsonify(hasil)
@@ -104,31 +104,30 @@ def proses_halaman():
 def reset_dokumen():
     global doc_aktif
     doc_aktif = None
-    hapus_cache()
+
+    ctrl.hapus_cache()
     return jsonify({'status': True})
 
 def cek_lang(lang):
+
     global translation
     is_changed = lang != translation
 
     if is_changed:
-        print(f"switch to {"lokal machine" if is_local(lang) else "Google Translate"}")
-        hapus_cache()
+        print(f"switch to {"lokal machine" if ctrl.is_local(lang) else "Google Translate"}")
+        ctrl.hapus_cache()
         translation = lang
         return translation
     return translation
 
 @app.route('/exit', methods=['POST'])
 def exit_app():
-    import os
-    import signal
-
-    os.kill(os.getpid(), signal.SIGINT)
+    threading.Thread(target=ctrl.shutdown_server).start()
     return {'status': True, 'message': 'Aplikasi berhasil dimatikan.'}
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
-    threading.Thread(target=initiate, daemon=True).start()
+    threading.Thread(target=ctrl.jalankan_inisiasi, daemon=True).start()
 
     sys.stdout.write("[SISTEM] Menjalankan Server...\n")
     sys.stdout.flush()

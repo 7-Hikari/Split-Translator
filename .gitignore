@@ -1,10 +1,11 @@
 *
 !.gitignore
-!app.py
-!kontroller.py
+!*.py
 !requirements.txt
 !templates/
 !static/
 !index.html
 !style.css
 !script.js
+!README.MD
+!Icon.ico

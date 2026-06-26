@@ -23,7 +23,7 @@ Untuk menjalankan aplikasi ini, Anda memerlukan:
 *   **Perpustakaan Python**: Instal dependensi berikut menggunakan pip:
 
     ```bash
-    pip install Flask deep-translator python-fitz PyMuPDF pyargostranslate Pillow winrt-Windows.Media.Ocr winrt-Windows.Graphics.Imaging winrt-Windows.Storage.Streams
+    pip install -r requirements.txt
     ```
     *Catatan*: Modul `winrt` mungkin memerlukan instalasi tambahan tergantung pada versi Windows Anda. Jika Anda mengalami masalah, pastikan Anda menggunakan versi Windows yang mendukungnya (Windows 10 versi 1809 atau lebih baru).
 
@@ -58,7 +58,6 @@ Untuk menjalankan aplikasi ini, Anda memerlukan:
     ```bash
     python app.py
     ```
-    Aplikasi akan secara otomatis membuka browser Anda ke `http://127.0.0.1:5000`.
 
 ## Membangun Executable dengan PyInstaller
 
@@ -73,7 +72,7 @@ Untuk membuat file executable mandiri yang dapat dijalankan di Windows tanpa per
     Buka terminal di direktori root proyek Anda dan jalankan perintah berikut:
 
     ```bash
-    pyinstaller --onedir --clean --add-data "templates;templates" --add-data "static;static" --collect-submodules winrt --name SplitTranslator app.py
+    pyinstaller --onedir --clean --collect-submodules winrt --name SplitTranslator app.py
     ```
 
     *   `--onedir`: Membuat file executable dengan folder dll.

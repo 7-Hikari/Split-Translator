@@ -3,7 +3,7 @@ import multiprocessing
 import io
 import base64
 import os
-import tkinter as tk
+import customtkinter as tk
 from PIL import Image, ImageTk
 from tkinter import filedialog, messagebox
 
@@ -36,16 +36,16 @@ def teks_terjemahan(teks):
     ui['output_teks'].insert(tk.END, teks)
 
 def background_inisiasi():
-    print("[SISTEM] Memulai inisialisasi model AI...")
+    print("[SISTEM] Memuat model bahasa lokal...")
     inisiasi_selesai() if ctrl.jalankan_inisiasi() else print("Gagal memuat model")
 
 def inisiasi_selesai():
     global list_bahasa
-    ui['btn_reset'].config(state=tk.NORMAL)
-    ui['btn_go'].config(state=tk.NORMAL)
+    ui['btn_reset'].configure(state=tk.NORMAL)
+    ui['btn_go'].configure(state=tk.NORMAL)
     ui['drop_zone'].bind("<Button-1>", pilih_file)
-    ui['lbl_drop_1'].config(text="Klik untuk memilih file")
-    ui['lbl_drop_2'].config(text="Jika tidak merespon, tunggu beberapa saat")
+    ui['lbl_drop_1'].configure(text="Klik untuk memilih file")
+    ui['lbl_drop_2'].configure(text="Jika tidak merespon, tunggu beberapa saat")
     teks_terjemahan("Sistem siap. Silakan unggah dokumen PDF untuk memulai.")
 
     try:
@@ -53,8 +53,8 @@ def inisiasi_selesai():
         bahasa = [nama.title() for nama in list_bahasa.keys()] # type: ignore
         bahasa.sort()
 
-        ui['cb_from_lang'].config(values=bahasa)
-        ui['cb_to_lang'].config(values=bahasa)
+        ui['cb_from_lang'].configure(values=bahasa)
+        ui['cb_to_lang'].configure(values=bahasa)
     except Exception as e:
         print(f'[SISTEM] Gagal memuat bahasa : {e}')
 
@@ -81,8 +81,8 @@ def pilih_file(event=None):
     file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
     if file_path:
         print(f"[USER] Memilih file: {os.path.basename(file_path)}")
-        ui['lbl_drop_1'].config(text="Sedang memproses dokumen...")
-        ui['lbl_drop_2'].config(text="Mohon tunggu.")
+        ui['lbl_drop_1'].configure(text="Sedang memproses dokumen...")
+        ui['lbl_drop_2'].configure(text="Mohon tunggu.")
         root.update_idletasks()
 
         hasil = ctrl.pdf_upload(file_path)
@@ -92,7 +92,7 @@ def pilih_file(event=None):
             ctrl.hapus_cache()
             total_halaman = hasil['total_halaman'] # Update global total_halaman
             halaman_saat_ini = 1
-            ui['label_total_halaman'].config(text=f"dari {total_halaman}")
+            ui['label_total_halaman'].configure(text=f"dari {total_halaman}")
             ui['input_halaman'].delete(0, tk.END)
             ui['input_halaman'].insert(0, str(halaman_saat_ini))
             ui['drop_zone'].place_forget()
@@ -131,7 +131,7 @@ def muat_gambar(angka_halaman):
                 gambar_laman = ImageTk.PhotoImage(pill_gambar)
                 ui['canvas_pdf'].itemconfig(ui['output_gambar'], image=gambar_laman)
                 ui['canvas_pdf'].image = gambar_laman
-                ui['canvas_pdf'].config(scrollregion=(0, 0, lebar_panel, tinggi_baru))
+                ui['canvas_pdf'].configure(scrollregion=(0, 0, lebar_panel, tinggi_baru))
         except Exception as e:
             print(f"[ERROR] Gagal merender gambar: {e}")
     else:
@@ -162,14 +162,14 @@ def reset_app():
     global doc_aktif
     doc_aktif = None
     ctrl.hapus_cache()
-    ui['label_total_halaman'].config(text="dari 0")
+    ui['label_total_halaman'].configure(text="dari 0")
     ui['input_halaman'].delete(0, tk.END)
     ui['input_halaman'].insert(0, "1")
     teks_terjemahan("Silakan unggah dokumen PDF untuk memulai.")
     ui['canvas_pdf'].image=None
-    ui['lbl_drop_1'].config(text="Klik untuk memilih file")
-    ui['lbl_drop_2'].config(text="")
-    ui['drop_zone'].place(relx=0.5, rely=0.5, anchor=tk.CENTER, width=350, height=150)
+    ui['lbl_drop_1'].configure(text="Klik untuk memilih file")
+    ui['lbl_drop_2'].configure(text="")
+    ui['drop_zone'].place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
 def aksi_navigasi_go():
     try:
@@ -186,9 +186,8 @@ def aksi_navigasi_go():
 def setGoogleTerjemahan(*args):
     global GoogleT, halaman_saat_ini
     GoogleT = not GoogleT
-    print(f"switch to {"Google Translate" if GoogleT else "Local Machine"}")
+    print(f"Var Google Translate = {GoogleT}")
     ambil_terjemahan(halaman_saat_ini)
-
 
 def exit_app():
     if messagebox.askyesno("Keluar", "Apakah Anda yakin ingin keluar dari aplikasi?"):
@@ -197,7 +196,7 @@ def exit_app():
 if __name__ == '__main__':
     multiprocessing.freeze_support()
 
-    root = tk.Tk()
+    root = tk.CTk()
     root.title("PDF OCR & Translator Offline")
     root.geometry("1100x750")
     root.configure(bg="#f5f6fa")

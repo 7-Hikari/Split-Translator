@@ -83,7 +83,7 @@ def initiate() -> bool:
     import argostranslate.package as package
 
     installed_packages = package.get_installed_packages()
-    if installed_packages is None:
+    if installed_packages == []:
         print("mengunduh paket terjemahan lokal [en -> id]...")
         try:
             package.update_package_index()

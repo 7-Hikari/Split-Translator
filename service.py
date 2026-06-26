@@ -62,8 +62,9 @@ def logika_proses_halaman(nomor_halaman, doc_aktif, lang, GoogleTr = False):
             text = _jalankan_windows_ocr(img_bytes)
 
         if not text.strip():
-            return {'status': True, 'halaman': nomor_halaman, 'terjemahan': 'Tidak ada teks terdeteksi di sini'}
+            return {'status': True, 'halaman': nomor_halaman, 'terjemahan': '(Tidak ada teks terdeteksi di sini)'}
 
+        text = text.replace('-\n', '')
 
         if kontroller.is_local(lang) and not GoogleTr:
             teks_terjemahan = argostranslate.translate.translate(q=text, from_code='en', to_code='id')
@@ -71,23 +72,18 @@ def logika_proses_halaman(nomor_halaman, doc_aktif, lang, GoogleTr = False):
             teks = text[:4500]
             teks_terjemahan = GoogleTranslator(source=lang['src'], target=lang['dst']).translate(teks)
 
-        html = teks_terjemahan.replace('\n', '<br>')
-        kontroller.cache[nomor_halaman] = html
+        kontroller.cache[nomor_halaman] = teks_terjemahan
 
-        return {'status': True, 'halaman': nomor_halaman, 'terjemahan': html}
+        return {'status': True, 'halaman': nomor_halaman, 'terjemahan': teks_terjemahan}
     except Exception as e:
         return {'status': False, 'message': "[Proses halaman] " + str(e)}
 
 
-def initiate():
+def initiate() -> bool:
     import argostranslate.package as package
 
     installed_packages = package.get_installed_packages()
-    if installed_packages:
-        print("Server berjalan di http://127.0.0.1:5000")
-        kontroller.buka_browser()
-        return
-    else:
+    if installed_packages is None:
         print("mengunduh paket terjemahan lokal [en -> id]...")
         try:
             package.update_package_index()
@@ -101,8 +97,8 @@ def initiate():
                 print("paket terjemahan lokal [en -> id] telah siap")
         except Exception as e:
             print(f"Gagal mengunduh paket terjemahan lokal : {e}")
+            return False
 
     print("Membersihkan cache...")
     shutil.rmtree(str(kontroller.MODEL_PATH / "cache/argos-translate"))
-    print("Server berjalan di http://127.0.0.1:5000")
-    kontroller.buka_browser()
+    return True

@@ -14,21 +14,23 @@ cache = {}
 
 def jalankan_inisiasi():
     from service import initiate
-    initiate()
+    return initiate()
 
-def get_language_keys():
+def get_language_keys() -> dict | list:
     return GoogleTranslator().get_supported_languages(as_dict=True)
 
 def memproses_halaman(nomor_halaman, doc_aktif, lang, GoogleTr):
     from service import logika_proses_halaman
     return logika_proses_halaman(nomor_halaman, doc_aktif, lang, GoogleTr)
 
-def pdf_upload(file):
+def pdf_upload(file_path):
     try:
-        pdf_bytes = file.read()
-        doc_aktif = fitz.open(stream=pdf_bytes, filetype="pdf")
-        total_halaman = len(doc_aktif)
-        return {'status': True, 'doc_aktif': doc_aktif, 'total_halaman': total_halaman}
+        with open(file_path, 'rb') as file:
+
+            pdf_bytes = file.read()
+            doc_aktif = fitz.open(stream=pdf_bytes, filetype="pdf")
+            total_halaman = len(doc_aktif)
+            return {'status': True, 'doc_aktif': doc_aktif, 'total_halaman': total_halaman}
     except Exception as e:
         return {'status': False, 'message': "[PDF upload] " + str(e)}
 
@@ -48,11 +50,6 @@ def shutdown_server():
     import signal
     time.sleep(1)
     os.kill(os.getpid(), signal.SIGINT)
-
-def buka_browser():
-    import webbrowser
-    time.sleep(0.5)
-    webbrowser.open("http://127.0.0.1:5000")
 
 def is_local(lang) -> bool:
     return lang['src'] == 'en' and lang['dst'] == 'id'

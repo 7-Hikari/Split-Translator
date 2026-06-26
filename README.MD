@@ -73,7 +73,7 @@ Untuk membuat file executable mandiri yang dapat dijalankan di Windows tanpa per
     Buka terminal di direktori root proyek Anda dan jalankan perintah berikut:
 
     ```bash
-    pyinstaller --onedir --windowed --clean --add-data "templates;templates" --add-data "static;static" --collect-submodules winrt --name SplitTranslator app.py
+    pyinstaller --onedir --clean --add-data "templates;templates" --add-data "static;static" --collect-submodules winrt --name SplitTranslator app.py
     ```
 
     *   `--onedir`: Membuat file executable dengan folder dll.

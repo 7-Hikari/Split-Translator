@@ -7,9 +7,9 @@ import customtkinter as tk
 from PIL import Image, ImageTk
 from tkinter import filedialog, messagebox
 
-import kontroller as ctrl
 import home, panel_debug
 
+ctrl = None #type : module
 doc_aktif = None
 gambar_halaman = None
 total_halaman = 0
@@ -36,6 +36,9 @@ def teks_terjemahan(teks):
     ui['output_teks'].insert(tk.END, teks)
 
 def background_inisiasi():
+    global ctrl
+    import kontroller as modul
+    ctrl = modul
     print("[SISTEM] Memuat model bahasa lokal...")
     inisiasi_selesai() if ctrl.jalankan_inisiasi() else print("Gagal memuat model")
 

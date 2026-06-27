@@ -2,13 +2,13 @@ import asyncio
 import shutil
 import fitz
 from deep_translator import GoogleTranslator
-import kontroller
+
+import winrt.system as wsystem
+import winrt.windows.media.ocr as ocr
+import winrt.windows.graphics.imaging as imaging
+import winrt.windows.storage.streams as streams
 
 def _jalankan_windows_ocr(img_bytes):
-    import winrt.system as wsystem
-    import winrt.windows.media.ocr as ocr
-    import winrt.windows.graphics.imaging as imaging
-    import winrt.windows.storage.streams as streams
 
     async def async_ocr():
         try:
@@ -44,6 +44,7 @@ def _jalankan_windows_ocr(img_bytes):
 
 def logika_proses_halaman(nomor_halaman, doc_aktif, lang, GoogleTr = False):
     import argostranslate.translate
+    import kontroller
 
     if nomor_halaman in kontroller.cache:
         return {'status': True, 'halaman': nomor_halaman, 'terjemahan': kontroller.cache[nomor_halaman]}
@@ -100,5 +101,6 @@ def initiate() -> bool:
             return False
 
     print("Membersihkan cache...")
+    import kontroller
     shutil.rmtree(str(kontroller.MODEL_PATH / "cache/argos-translate"))
     return True

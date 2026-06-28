@@ -1,0 +1,17 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --target es2022",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^3.0.7",
+    "@huggingface/transformers": "^3.0.0"
+  },
+  "browserslist": [
+      "ES2022"
+    ]
+}

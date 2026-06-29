@@ -29,13 +29,14 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build Application
-        shell: msys2 {0}
         run: |
-          export PATH=$PATH:/c/hostedtoolcache/windows/go/1.21.0/x64/bin
-          export CGO_ENABLED=1
+          
+          $env:CGO_ENABLED="1"
+          $env:PATH="C:\msys64\ucrt64\bin;C:\msys64\usr\bin;" + $env:PATH
           # Menghubungkan jalur header dan library Tesseract dari Chocolatey ke MSYS2
-          export CGO_CFLAGS="-I/c/Program Files/Tesseract-OCR/include"
-          export CGO_LDFLAGS="-L/c/Program Files/Tesseract-OCR -ltesseract"
+
+          $env:CGO_CFLAGS="-I`"C:\Program Files\Tesseract-OCR\include`""
+          $env:CGO_LDFLAGS="-L`"C:\Program Files\Tesseract-OCR`" -ltesseract"
           
           cd go
           go run github.com/wailsapp/wails/v2/cmd/wails@latest build -platform windows/amd64

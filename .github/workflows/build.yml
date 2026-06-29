@@ -11,16 +11,19 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21' # Sesuaikan versi Go Anda
+          go-version: '1.21'
 
-      - name: Install MSYS2 & Dependencies
+      # Menggunakan Chocolatey untuk menginstal Tesseract versi Windows secara instan
+      - name: Install Tesseract via Chocolatey
+        run: |
+          choco install tesseract
+
+      - name: Install MSYS2 & GCC Compiler
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
           update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-tesseract
+          install: mingw-w64-ucrt-x86_64-gcc
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
@@ -29,6 +32,10 @@ jobs:
         shell: msys2 {0}
         run: |
           export CGO_ENABLED=1
+          # Menghubungkan jalur header dan library Tesseract dari Chocolatey ke MSYS2
+          export CGO_CFLAGS="-I/c/Program Files/Tesseract-OCR/include"
+          export CGO_LDFLAGS="-L/c/Program Files/Tesseract-OCR -ltesseract"
+          
           cd go
           wails build -platform windows/amd64
 

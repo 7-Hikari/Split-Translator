@@ -1,0 +1,25 @@
+{
+    "name": "Go & Wails (Cached)",
+    // Mengganti properti "image" menjadi "dockerFile"
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    // Fitur Node.js tetap di sini karena diatur otomatis oleh Microsoft devcontainer
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "lts"
+        }
+    },
+    // Mendaftarkan binary Go ke PATH secara permanen
+    "remoteEnv": {
+        "PATH": "${containerEnv:PATH}:/home/vscode/go/bin",
+        "TESSDATA_PREFIX": "/usr/share/tesseract-ocr/5/tessdata"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "golang.go"
+            ]
+        }
+    }
+}

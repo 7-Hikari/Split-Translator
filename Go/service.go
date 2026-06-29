@@ -2,98 +2,164 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	_ "image/png"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/otiai10/gosseract/v2"
 )
 
-type Service struct{
-	cache map[int]string
+type Service struct {
+	cache      map[int]string
 	cacheMutex sync.RWMutex
 }
 
-func NewService() *Service{
+func NewService() *Service {
 	return &Service{cache: make(map[int]string)}
 }
 
 func (s *Service) LogikaProsesHalaman(
 	nomorHal int, ctrl *Kontroller, src string, dst string,
-	GoogleTr bool) (string, error){
+	GoogleTr bool) (string, error) {
 
-		s.cacheMutex.RLock()
-		if hasilCache, ada := s.cache[nomorHal]; ada {
-			s.cacheMutex.RUnlock()
-			return hasilCache, nil
-		}
+	s.cacheMutex.RLock()
+	if hasilCache, ada := s.cache[nomorHal]; ada {
 		s.cacheMutex.RUnlock()
+		return hasilCache, nil
+	}
+	s.cacheMutex.RUnlock()
 
-		if ctrl.docAktif == nil{return "", fmt.Errorf("Tidak ada dokumen aktif")}
+	if ctrl.docAktif == nil {
+		return "", fmt.Errorf("Tidak ada dokumen aktif")
+	}
 
-		page, err := ctrl.docAktif.Text(nomorHal - 1)
-		if err != nil{return "", fmt.Errorf("Gagal mengekstrak teks: %w", err)}
+	page, err := ctrl.docAktif.Text(nomorHal - 1)
+	if err != nil {
+		return "", fmt.Errorf("Gagal mengekstrak teks: %w", err)
+	}
 
-		text := strings.TrimSpace(page)
+	text := strings.TrimSpace(page)
 
-		if text == ""{
-			base64G, err := ctrl.AmbilGambar(nomorHal)
+	if text == "" {
+		base64G, err := ctrl.AmbilGambar(nomorHal)
 
-			if err != nil{return "", fmt.Errorf("gagal mengambil gambar halaman: %w", err)}
-
-			text, err = s.jalankanTesseractOCR(base64G)
-			if err != nil{return "", fmt.Errorf("gagal memproses OCR: %w", err)}
-			if strings.TrimSpace(text) == ""{
-				return "(Tidak ada teks terdeteksi di sini)", nil
-			}
+		if err != nil {
+			return "", fmt.Errorf("gagal mengambil gambar halaman: %w", err)
 		}
 
-		text = strings.ReplaceAll(text, "-\n", "")
+		text, err = s.jalankanTesseractOCR(base64G)
+		if err != nil {
+			return "", fmt.Errorf("gagal memproses OCR: %w", err)
+		}
+		if strings.TrimSpace(text) == "" {
+			return "(Tidak ada teks terdeteksi di sini)", nil
+		}
+	}
 
-		var textTerjemahan string
-		if ctrl.IsLokal(src, dst, GoogleTr){
-			textTerjemahan = text
-		}else{
-			if len(text) > 4500 {
-				text = text[:4500]
-			}
-			var errTranslate error
-			textTerjemahan, errTranslate = s.translateViaGoogle(text, src, dst)
-			if errTranslate != nil{
-				return "", fmt.Errorf("Gagal translasi: %w", errTranslate)
+	text = strings.ReplaceAll(text, "-\n", "")
+
+	var textTerjemahan string
+	if ctrl.IsLokal(src, dst, GoogleTr) {
+		textTerjemahan = text
+	} else {
+		if len(text) > 4500 {
+			text = text[:4500]
+		}
+		var errTranslate error
+		textTerjemahan, errTranslate = s.translateViaGoogle(text, src, dst)
+		if errTranslate != nil {
+			return "", fmt.Errorf("Gagal translasi: %w", errTranslate)
+		}
+	}
+
+	s.cacheMutex.Lock()
+	s.cache[nomorHal] = textTerjemahan
+	s.cacheMutex.Unlock()
+
+	return textTerjemahan, nil
+}
+
+func (s *Service) jalankanTesseractOCR(base64Gambar string) (string, error) {
+	if strings.Contains(base64Gambar, ",") {
+		base64Gambar = strings.Split(base64Gambar, ",")[1]
+	}
+
+	imgBytes, err := base64.StdEncoding.DecodeString(base64Gambar)
+	if err != nil {
+		return "", fmt.Errorf("gagal decode base64: %w", err)
+	}
+
+	client := gosseract.NewClient()
+	defer client.Close()
+
+	// windows, tesseract diletakkan manual
+	var tessdataPath string
+
+	if runtime.GOOS == "windows" {
+		// Jalur manual untuk Windows (mengikuti letak file .exe)
+		exePath, _ := os.Executable()
+		exeDir := filepath.Dir(exePath)
+		tessdataPath = filepath.Join(exeDir, "tessdata")
+	} else {
+		// Jalur standar untuk Linux / Docker
+		tessdataPath = "/usr/share/tesseract-ocr/5/tessdata"
+	}
+	client.SetTessdataPrefix(tessdataPath)
+	print(tessdataPath)
+
+	client.SetLanguage("lat")
+	err = client.SetImageFromBytes(imgBytes)
+	if err != nil {
+		return "", fmt.Errorf("tesseract gagal menerima byte gambar: %w", err)
+	}
+
+	return client.Text()
+}
+
+func (s *Service) translateViaGoogle(text string, src string, dst string) (string, error) {
+	apiURL := fmt.Sprintf("https://translate.googleapis.com/translate_a/single?client=gtx&sl=%s&tl=%s&dt=t&q=%s",
+		src, dst, url.QueryEscape(text))
+
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return text, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return text, err
+	}
+
+	var raw []interface{}
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return text, err
+	}
+
+	if len(raw) > 0 && raw[0] != nil {
+		var result strings.Builder
+		for _, item := range raw[0].([]interface{}) {
+			if item != nil {
+				translatedLine := item.([]interface{})[0].(string)
+				result.WriteString(translatedLine)
 			}
 		}
-
-		s.cacheMutex.Lock()
-		s.cache[nomorHal] = textTerjemahan
-		s.cacheMutex.Unlock()
-
-		return textTerjemahan, nil
+		return result.String(), nil
 	}
 
-	func (s *Service) jalankanTesseractOCR(base64Gambar string) (string, error){
-		if strings.Contains(base64Gambar, ","){base64Gambar=strings.Split(base64Gambar, ",")[1]}
+	return text, fmt.Errorf("gagal memparsing data translasi")
+}
 
-		imgBytes, err := base64.StdEncoding.DecodeString(base64Gambar)
-		if err != nil{return "", fmt.Errorf("gagal decode base64: %w", err)}
-
-		client := gosseract.NewClient()
-		defer client.Close()
-
-		client.SetLanguage("Latin")
-		err= client.SetImageFromBytes(imgBytes)
-		if err != nil{return "", fmt.Errorf("tesseract gagal menerima byte gambar: %w", err)}
-
-		return client.Text()
-	}
-
-	func (s *Service) translateViaGoogle(text string, src string, dst string) (string, error){
-		return text,nil
-	}
-
-	func (s *Service) ClearCache(){
-		s.cacheMutex.Lock()
-		s.cache = make(map[int]string)
-		s.cacheMutex.Unlock()
-	}
+func (s *Service) ClearCache() {
+	s.cacheMutex.Lock()
+	s.cache = make(map[int]string)
+	s.cacheMutex.Unlock()
+}

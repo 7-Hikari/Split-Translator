@@ -2,7 +2,7 @@ import { pipeline, env } from '@huggingface/transformers';
 
 env.allowLocalModels = true;
 env.allowRemoteModels = false; // Matikan akses internet
-env.localModelPath = '/models/';
+env.localModelPath = './models/';
 
 const panelPdf = document.getElementById("panel-pdf");
 const pageIndicator = document.getElementById("page-indicator");
@@ -11,6 +11,7 @@ const sourceLang = document.getElementById("from-language");
 const destLang = document.getElementById("to-language");
 
 let GoogleTr = false;
+window.GoogleTr = GoogleTr;
 let src = "en";
 let dst = "id";
 let halamanSekarang = 1;
@@ -30,25 +31,43 @@ async function inisialisasiPenerjemah() {
 }
 
 async function terjemahkanHalaman(teksAsli) {
-  if (!translator) {
-          await inisialisasiPenerjemah();
-      }
+    if (!translator) {
+        await inisialisasiPenerjemah();
+    }
 
-      try {
-          const output = await translator(teksAsli, {
-              src_lang: 'en',
-              tgt_lang: 'id',
-          });
-          return output[0].translation_text;
-      } catch (error) {
-          console.error("Gagal translasi:", error);
-          return teksAsli;
-      }
+    try {
+        const kalimatArray = teksAsli.split(/(?<=[.!?])\s+/);
+        const hasilArray = [];
+
+        // Terjemahkan masing-masing kalimat satu per satu
+        for (const kalimat of kalimatArray) {
+            if (kalimat.trim() === "") continue;
+
+            const output = await translator(kalimat, {
+                src_lang: 'en',
+                tgt_lang: 'id',
+            });
+            
+            hasilArray.push(output[0].translation_text);
+        }
+        console.log("hasil Go: "+teksAsli)
+        console.log("hasil Hugging: "+hasilArray.join(" "))
+        // Gabungkan kembali semua kalimat yang telah diterjemahkan
+        return hasilArray.join(" ");
+    } catch (error) {
+        console.error("Gagal translasi:", error);
+        return teksAsli;
+    }
 }
 
-async function apakahLokal(isLokal) {
-  const hasilTerjemahan = await terjemahkanHalaman(data.terjemahan);
-  outputTeks.innerHTML = hasilTerjemahan;
+async function apakahLokal(data) {
+    let hasilTerjemahan = ""
+    if (data.isLokal) {
+        hasilTerjemahan = await terjemahkanHalaman(data.terjemahan);
+    } else {
+        hasilTerjemahan = data.terjemahan
+    }
+    outputTeks.innerHTML = hasilTerjemahan;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -125,7 +144,7 @@ function resetApp() {
     window.go.main.App.ResetDokumen().catch((err) => console.error(err));
 }
 
-document.getElementById("reset").addEventListener("click", ()=>{
+document.getElementById("reset").addEventListener("click", () => {
     resetApp();
 })
 
@@ -169,11 +188,11 @@ async function ambilTerjemahan(nomorHalaman) {
             parseInt(nomorHalaman),
             src,
             dst,
-            GoogleTr,
+            window.GoogleTr,
         );
 
         if (data && data.status === true) {
-            apakahLokal(data.isLokal);
+            apakahLokal(data);
         } else {
             outputTeks.innerHTML = `<span style="color:red;">Gagal: ${data.message || "Terjadi kesalahan sistem."}</span>`;
         }
@@ -261,7 +280,7 @@ async function prosesUploadPDF(file) {
             } else {
                 alert(
                     "Gagal memproses PDF: " +
-                        (data ? data.message : "Unknown error"),
+                    (data ? data.message : "Unknown error"),
                 );
                 location.reload();
             }

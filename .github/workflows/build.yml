@@ -58,7 +58,7 @@ jobs:
           export PATH="$PATH:$POSIX_GOPATH/bin"
           
           # 5. Jalankan build Wails dengan flag -skipfrontend
-          wails build -platform windows/amd64 -skipfrontend
+          wails build -platform windows/amd64 -s
           
           # OPTIMASI: Salin DLL Tesseract dan dependensinya ke folder output agar aplikasi bisa berjalan standalone
           cp /clang64/bin/libtesseract-*.dll build/bin/

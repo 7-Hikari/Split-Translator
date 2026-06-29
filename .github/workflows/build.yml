@@ -11,32 +11,27 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.26'
 
-      # Menggunakan Chocolatey untuk menginstal Tesseract versi Windows secara instan
-      - name: Install Tesseract via Chocolatey
-        run: |
-          choco install tesseract
-
-      - name: Install MSYS2 & GCC Compiler
+      - name: Install MSYS2 & Tesseract Dependencies
         uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: CLANG64
           update: true
-          install: mingw-w64-ucrt-x86_64-gcc
-
-      - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          install: >-
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-tesseract
 
       - name: Build Application
         run: |
-          
           $env:CGO_ENABLED="1"
-          $env:PATH="C:\msys64\ucrt64\bin;C:\msys64\usr\bin;" + $env:PATH
-          # Menghubungkan jalur header dan library Tesseract dari Chocolatey ke MSYS2
-
-          $env:CGO_CFLAGS="-I/c/PROGRA~1/Tesseract-OCR/include"
-          $env:CGO_LDFLAGS="-L/c/PROGRA~1/Tesseract-OCR -ltesseract"
+          
+          # Menggunakan compiler Clang dari MSYS2 yang membawa paket Tesseract + Leptonica lengkap
+          $env:PATH="C:\msys64\clang64\bin;C:\msys64\usr\bin;" + $env:PATH
+          
+          # Mengarahkan CGO ke jalur MSYS2 Clang64
+          $env:CGO_CFLAGS="-I/c/msys64/clang64/include"
+          $env:CGO_LDFLAGS="-L/c/msys64/clang64/lib -ltesseract"
           
           cd go
           go run github.com/wailsapp/wails/v2/cmd/wails@latest build -platform windows/amd64

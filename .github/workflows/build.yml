@@ -13,31 +13,63 @@ jobs:
         with:
           go-version: '1.26'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Langkah Tambahan: Build Frontend di Shell Windows Asli
+      - name: Build Frontend
+        shell: cmd
+        run: |
+          cd go\frontend
+          npm install
+          npm run build
+
       - name: Install MSYS2 & Tesseract Dependencies
         uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
           update: true
+          path-type: inherit
           install: >-
             mingw-w64-clang-x86_64-clang
             mingw-w64-clang-x86_64-tesseract
+            mingw-w64-clang-x86_64-pkg-config
 
-      - name: Build Application
+      - name: Build Application (Backend Only)
+        shell: msys2 {0}
         run: |
-          $env:CGO_ENABLED="1"
+          # 1. Bersihkan environment CGO dari karakter \r Windows
+          export CGO_ENABLED=1
+          export CC=clang
+          export CGO_CFLAGS=$(pkg-config --cflags tesseract | tr -d '\r')
+          export CGO_LDFLAGS=$(pkg-config --libs tesseract | tr -d '\r')
           
-          # Menggunakan compiler Clang dari MSYS2 yang membawa paket Tesseract + Leptonica lengkap
-          $env:PATH="C:\msys64\clang64\bin;C:\msys64\usr\bin;" + $env:PATH
-          
-          # Mengarahkan CGO ke jalur MSYS2 Clang64
-          $env:CGO_CFLAGS="-I/c/msys64/clang64/include"
-          $env:CGO_LDFLAGS="-L/c/msys64/clang64/lib -ltesseract"
-          
+          # 2. Masuk ke folder go
           cd go
-          go run github.com/wailsapp/wails/v2/cmd/wails@latest build -platform windows/amd64
+          
+          # 3. Install Wails CLI
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          
+          # 4. Konversi GOPATH Windows ke format POSIX MSYS2 menggunakan cygpath
+          RAW_GOPATH=$(go env GOPATH | tr -d '\r')
+          POSIX_GOPATH=$(cygpath -u "$RAW_GOPATH")
+          export PATH="$PATH:$POSIX_GOPATH/bin"
+          
+          # 5. Jalankan build Wails dengan flag -skipfrontend
+          wails build -platform windows/amd64 -skipfrontend
+          
+          # OPTIMASI: Salin DLL Tesseract dan dependensinya ke folder output agar aplikasi bisa berjalan standalone
+          cp /clang64/bin/libtesseract-*.dll build/bin/
+          cp /clang64/bin/liblept-*.dll build/bin/
+          cp /clang64/bin/libwinpthread-*.dll build/bin/
+          cp /clang64/bin/libstdc++-*.dll build/bin/
+          cp /clang64/bin/libgcc_s_*.dll build/bin/
 
+      # Langkah Upload dimodifikasi untuk mengambil seluruh isi folder bin (termasuk .exe dan .dll)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-app
-          path: go/build/bin/*.exe
+          path: go/build/bin/

@@ -18,56 +18,21 @@ jobs:
         with:
           node-version: '20'
 
-      # Langkah Tambahan: Build Frontend di Shell Windows Asli
       - name: Build Frontend
-        shell: cmd
         run: |
           cd go\frontend
           npm install
           npm run build
 
-      - name: Install MSYS2 & Tesseract Dependencies
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: CLANG64
-          update: true
-          path-type: inherit
-          install: >-
-            mingw-w64-clang-x86_64-clang
-            mingw-w64-clang-x86_64-tesseract-ocr
-            mingw-w64-clang-x86_64-pkg-config
-
-      - name: Build Application (Backend Only)
-        shell: msys2 {0}
+      - name: Build Application (Backend)
         run: |
-          # 1. Bersihkan environment CGO dari karakter \r Windows
-          export CGO_ENABLED=1
-          export CC=clang
-          export CGO_CFLAGS=$(pkg-config --cflags tesseract | tr -d '\r')
-          export CGO_LDFLAGS=$(pkg-config --libs tesseract | tr -d '\r')
-          
-          # 2. Masuk ke folder go
           cd go
+          # CGO dimatikan penuh karena Windows OCR menggunakan Native WinRT API bawaan Windows
+          $env:CGO_ENABLED="0"
           
-          # 3. Install Wails CLI
-          go install github.com/wailsapp/wails/v2/cmd/wails@latest
-          
-          # 4. Konversi GOPATH Windows ke format POSIX MSYS2 menggunakan cygpath
-          RAW_GOPATH=$(go env GOPATH | tr -d '\r')
-          POSIX_GOPATH=$(cygpath -u "$RAW_GOPATH")
-          export PATH="$PATH:$POSIX_GOPATH/bin"
-          
-          # 5. Jalankan build Wails dengan flag -skipfrontend
-          wails build -platform windows/amd64 -s
-          
-          # OPTIMASI: Salin DLL Tesseract dan dependensinya ke folder output agar aplikasi bisa berjalan standalone
-          cp /clang64/bin/libtesseract-*.dll build/bin/
-          cp /clang64/bin/liblept-*.dll build/bin/
-          cp /clang64/bin/libwinpthread-*.dll build/bin/
-          cp /clang64/bin/libstdc++-*.dll build/bin/
-          cp /clang64/bin/libgcc_s_*.dll build/bin/
+          # Install Wails CLI dan jalankan build dengan flag -s (skipfrontend)
+          go run github.com/wailsapp/wails/v2/cmd/wails@latest build -platform windows/amd64 -s
 
-      # Langkah Upload dimodifikasi untuk mengambil seluruh isi folder bin (termasuk .exe dan .dll)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:

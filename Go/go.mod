@@ -6,7 +6,6 @@ toolchain go1.24.4
 
 require (
 	github.com/gen2brain/go-fitz v1.28.0
-	github.com/otiai10/gosseract/v2 v2.4.1
 	github.com/wailsapp/wails/v2 v2.12.0
 )
 

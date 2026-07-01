@@ -1,20 +1,15 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	_ "image/png"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
-
-	"github.com/otiai10/gosseract/v2"
 )
 
 type Service struct {
@@ -55,7 +50,7 @@ func (s *Service) LogikaProsesHalaman(
 			return "", fmt.Errorf("gagal mengambil gambar halaman: %w", err)
 		}
 
-		text, err = s.jalankanTesseractOCR(base64G)
+		text, err = s.jalankanWindowsOCR(base64G)
 		if err != nil {
 			return "", fmt.Errorf("gagal memproses OCR: %w", err)
 		}
@@ -87,41 +82,12 @@ func (s *Service) LogikaProsesHalaman(
 	return textTerjemahan, nil
 }
 
-func (s *Service) jalankanTesseractOCR(base64Gambar string) (string, error) {
-	if strings.Contains(base64Gambar, ",") {
-		base64Gambar = strings.Split(base64Gambar, ",")[1]
-	}
-
-	imgBytes, err := base64.StdEncoding.DecodeString(base64Gambar)
-	if err != nil {
-		return "", fmt.Errorf("gagal decode base64: %w", err)
-	}
-
-	client := gosseract.NewClient()
-	defer client.Close()
-
-	// windows, tesseract diletakkan manual
-	var tessdataPath string
-
+func (s *Service) jalankanWindowsOCR(base64Gambar string) (string, error) {
 	if runtime.GOOS == "windows" {
-		// Jalur manual untuk Windows (mengikuti letak file .exe)
-		exePath, _ := os.Executable()
-		exeDir := filepath.Dir(exePath)
-		tessdataPath = filepath.Join(exeDir, "tessdata")
-	} else {
-		// Jalur standar untuk Linux / Docker
-		tessdataPath = "/usr/share/tesseract-ocr/5/tessdata"
+		// Kita panggil fungsi dari sub-folder lewat fungsi pembantu internal Go
+		return panggilOcrSecaraDinamis(base64Gambar)
 	}
-	client.SetTessdataPrefix(tessdataPath)
-	print(tessdataPath)
-
-	client.SetLanguage("lat")
-	err = client.SetImageFromBytes(imgBytes)
-	if err != nil {
-		return "", fmt.Errorf("tesseract gagal menerima byte gambar: %w", err)
-	}
-
-	return client.Text()
+	return "", fmt.Errorf("Windows OCR hanya dapat berjalan di sistem operasi Windows")
 }
 
 func (s *Service) translateViaGoogle(text string, src string, dst string) (string, error) {

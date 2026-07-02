@@ -16,9 +16,9 @@ func NewKontroller() *Kontroller{
 	return &Kontroller{}
 }
 
-func (k *Kontroller) PdfUpload(pdfBytes []byte) (int, error){
-	doc, err :=fitz.NewFromReader(bytes.NewReader(pdfBytes))
-	if err != nil{return 0, fmt.Errorf("PDF upload : %w", err)}
+func (k *Kontroller) PdfUpload(filePath string) (int, error){
+	doc, err := fitz.New(filePath)
+	if err != nil {return 0, err}
 
 	k.docAktif = doc
 	return doc.NumPage(), nil

@@ -129,3 +129,21 @@ func (s *Service) ClearCache() {
 	s.cache = make(map[int]string)
 	s.cacheMutex.Unlock()
 }
+
+type AvailableLanguages struct{
+	Lang map[string]string `json:"sl"`
+}
+func (s *Service) GetSupportedLanguages() (map[string]string, error){
+	resp, err := http.Get("https://translate.google.com/translate_a/l?client=gtx")
+	if err != nil{return nil, err}
+	defer resp.Body.Close()
+
+	var data AvailableLanguages
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {return nil, err}
+
+	var langCodes map[string]string = make(map[string]string)
+	for code, name := range data.Lang{
+		langCodes[code] = name
+	}
+	return langCodes, nil
+}

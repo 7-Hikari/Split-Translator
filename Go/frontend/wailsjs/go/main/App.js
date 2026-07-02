@@ -26,6 +26,6 @@ export function Terjemahkan(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['Terjemahkan'](arg1, arg2, arg3, arg4);
 }
 
-export function UploadPDF(arg1, arg2) {
-  return window['go']['main']['App']['UploadPDF'](arg1, arg2);
+export function UploadPDF() {
+  return window['go']['main']['App']['UploadPDF']();
 }

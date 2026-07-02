@@ -47,7 +47,7 @@ async function terjemahkanHalaman(teksAsli) {
                 src_lang: 'en',
                 tgt_lang: 'id',
             });
-            
+
             hasilArray.push(output[0].translation_text);
         }
         console.log("hasil Go: "+teksAsli)
@@ -72,10 +72,11 @@ async function apakahLokal(data) {
 
 document.addEventListener("DOMContentLoaded", () => {
     window.go.main.App.Languages().then((data) => {
-        library = data.languages;
+      library = data.languages;
+      console.log("data : "+data.languages)
         if (library) {
             sourceLang.innerHTML = destLang.innerHTML = "";
-            Object.entries(library).forEach(([key, value]) => {
+            Object.entries(library).forEach(([value, key]) => {
                 sourceLang.innerHTML += `<option value="${value}">${key}</option>`;
                 destLang.innerHTML += `<option value="${value}">${key}</option>`;
             });
@@ -208,7 +209,38 @@ const fileInput = document.getElementById("file-input");
 const pdfContainer = document.getElementById("pdf-pages-container");
 
 // 1. Klik area drop-zone untuk buka file manager komputer
-dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("click", async () => {
+    try {
+        // Panggil fungsi di Go untuk memilih file dan memprosesnya langsung via path
+        const data = await window.go.main.App.UploadPDF();
+
+        if (data && data.status === true) {
+            dropZone.style.display = "none";
+            pdfContainer.style.display = "block";
+            pdfContainer.innerHTML = "";
+
+            totalHalamanGlobal = data.total_halaman;
+            const totalPageIndicator = document.getElementById("total-halaman");
+            if (totalPageIndicator) totalPageIndicator.innerText = totalHalamanGlobal;
+
+            for (let i = 1; i <= totalHalamanGlobal; i++) {
+                const pageElement = document.createElement("div");
+                pageElement.className = "pdf-page-mock";
+                pageElement.setAttribute("data-page", i);
+                pageElement.innerHTML = `<p id="loading-page-${i}" style="padding: 20px; color:#7f8c8d;">Memuat gambar halaman ${i}...</p>`;
+                pdfContainer.appendChild(pageElement);
+
+                observerGambar.observe(pageElement);
+            }
+            ambilTerjemahan(1);
+        } else if (data && data.message !== "Dibatalkan") {
+            alert("Gagal memproses PDF: " + data.message);
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Terjadi kesalahan saat memproses dokumen.");
+    }
+});
 
 // 2. Efek visual saat file diseret di atas drop-zone
 dropZone.addEventListener("dragover", (e) => {
@@ -220,78 +252,6 @@ dropZone.addEventListener("dragleave", () => {
     dropZone.style.backgroundColor = "#ffffff";
 });
 
-// 3. Menangkap file saat dilepas (Drop) atau dipilih (Input)
-dropZone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropZone.style.backgroundColor = "#ffffff";
-    const files = e.dataTransfer.files;
-    if (files.length > 0 && files[0].type === "application/pdf") {
-        prosesUploadPDF(files[0]);
-    } else {
-        alert("Mohon masukkan berkas berformat PDF!");
-    }
-});
-
-fileInput.addEventListener("change", (e) => {
-    if (e.target.files.length > 0) {
-        prosesUploadPDF(e.target.files[0]);
-    }
-});
-
-async function prosesUploadPDF(file) {
-    document.getElementById("drop-zone-text-1").innerText =
-        "Sedang memproses dokumen...";
-    document.getElementById("drop-zone-text-2").innerText = "Mohon tunggu.";
-
-    const reader = new FileReader();
-
-    reader.onload = async () => {
-        const base64data = reader.result;
-
-        try {
-            const data = await window.go.main.App.UploadPDF(
-                file.name,
-                base64data,
-            );
-
-            if (data && data.status === true) {
-                dropZone.style.display = "none";
-                pdfContainer.style.display = "block";
-                pdfContainer.innerHTML = "";
-
-                totalHalamanGlobal = data.total_halaman;
-                const totalPageIndicator =
-                    document.getElementById("total-halaman");
-                if (totalPageIndicator)
-                    totalPageIndicator.innerText = totalHalamanGlobal;
-
-                // Generate kontainer halaman
-                for (let i = 1; i <= totalHalamanGlobal; i++) {
-                    const pageElement = document.createElement("div");
-                    pageElement.className = "pdf-page-mock";
-                    pageElement.setAttribute("data-page", i);
-                    pageElement.style.height = "auto";
-                    pageElement.innerHTML = `<p id="loading-page-${i}" style="padding: 20px; color:#7f8c8d;">Memuat gambar halaman ${i}...</p>`;
-                    pdfContainer.appendChild(pageElement);
-
-                    observerGambar.observe(pageElement);
-                }
-                ambilTerjemahan(1);
-            } else {
-                alert(
-                    "Gagal memproses PDF: " +
-                    (data ? data.message : "Unknown error"),
-                );
-                location.reload();
-            }
-        } catch (error) {
-            console.error(error);
-            alert("Terjadi kesalahan saat mengunggah berkas.");
-            location.reload();
-        }
-    };
-    reader.readAsDataURL(file);
-}
 
 async function muatGambarHalaman(nomorHalaman, elemenInduk) {
     try {

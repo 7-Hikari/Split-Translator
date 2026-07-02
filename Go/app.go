@@ -3,8 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
-	"encoding/base64"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -16,15 +15,15 @@ type App struct {
 	destLang string
 }
 
+
+
 type LanguagesResponse struct {
 	Status bool `json:"status"`
 	Languages map[string]string `json:"languages"`
 }
 func (a *App) Languages() (LanguagesResponse, error){
-	bahasa := map[string]string{
-		"English": "en",
-		"Indonesian": "id",
-	}
+	bahasa, err := a.Srv.GetSupportedLanguages()
+	if err != nil {return LanguagesResponse{Status:false}, err}
 	return LanguagesResponse{Status: true, Languages: bahasa}, nil
 }
 
@@ -33,25 +32,25 @@ type UploadResponse struct {
 	Message string `json:"message"`
 	TotalHalaman int `json:"total_halaman"`
 }
-func (a *App) UploadPDF(fileName string, base64Str string) (UploadResponse, error){
+func (a *App) UploadPDF() (UploadResponse, error){
 	a.Srv.ClearCache()
 
-	if !strings.HasSuffix(strings.ToLower(fileName), ".pdf"){
-		return UploadResponse{Status: false, Message: "Format harus PDF"}, nil
-	}
-	if strings.Contains(base64Str, ","){
-		base64Str = strings.Split(base64Str, ",")[1]
-	}
-	pdfBytes, err := base64.StdEncoding.DecodeString(base64Str)
-	if err != nil {return UploadResponse{Status: false, Message: fmt.Sprintf("Gagal decode Base64: %v", err)}, nil}
-	if len(pdfBytes) == 0 {return UploadResponse{Status: false, Message: "Data PDF kosong (0 bytes)"}, nil}
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+			Title: "Pilih Dokumen PDF 170MB Anda",
+			Filters: []runtime.FileFilter{
+				{DisplayName: "PDF Documents (*.pdf)", Pattern: "*.pdf"},
+			},
+		})
+	if err != nil {return UploadResponse{Status: false, Message: err.Error()}, nil}
+	if filePath == "" {return UploadResponse{Status: false, Message: "Dibatalkan"}, nil}
 
-	totalHal, err := a.Ctrl.PdfUpload(pdfBytes)
+
+	totalHal, err := a.Ctrl.PdfUpload(filePath)
 
 	if err != nil {return UploadResponse{Status: false, Message: err.Error()}, nil}
 
 	return UploadResponse{Status:true,
-		Message: "File yang diproses " + fileName,
+		Message: "File yang diproses " + filePath,
 		TotalHalaman:totalHal}, nil
 }
 

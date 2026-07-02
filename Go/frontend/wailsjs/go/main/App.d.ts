@@ -14,4 +14,4 @@ export function ResetDokumen():Promise<Record<string, boolean>>;
 
 export function Terjemahkan(arg1:number,arg2:string,arg3:string,arg4:boolean):Promise<main.TerjemahanResponse>;
 
-export function UploadPDF(arg1:string,arg2:string):Promise<main.UploadResponse>;
+export function UploadPDF():Promise<main.UploadResponse>;

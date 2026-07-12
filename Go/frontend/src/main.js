@@ -1,9 +1,3 @@
-import { pipeline, env } from '@huggingface/transformers';
-
-env.allowLocalModels = true;
-env.allowRemoteModels = false; // Matikan akses internet
-env.localModelPath = './models/';
-
 const panelPdf = document.getElementById("panel-pdf");
 const pageIndicator = document.getElementById("page-indicator");
 const outputTeks = document.getElementById("output-teks");
@@ -20,57 +14,7 @@ let totalHalamanGlobal = 0;
 
 let library = null;
 
-let translator = null;
-
-async function inisialisasiPenerjemah() {
-    console.log("Memuat model penerjemah @huggingface...", env.localModelPath);
-    translator = await pipeline('translation', 'Xenova/opus-mt-en-id', {
-        quantized: true
-    });
-    console.log("Penerjemah siap!");
-}
-
-async function terjemahkanHalaman(teksAsli) {
-    if (!translator) {
-        await inisialisasiPenerjemah();
-    }
-
-    try {
-        const kalimatArray = teksAsli.split(/(?<=[.!?])\s+/);
-        const hasilArray = [];
-
-        // Terjemahkan masing-masing kalimat satu per satu
-        for (const kalimat of kalimatArray) {
-            if (kalimat.trim() === "") continue;
-
-            const output = await translator(kalimat, {
-                src_lang: 'en',
-                tgt_lang: 'id',
-            });
-
-            hasilArray.push(output[0].translation_text);
-        }
-        console.log("hasil Go: "+teksAsli)
-        console.log("hasil Hugging: "+hasilArray.join(" "))
-        // Gabungkan kembali semua kalimat yang telah diterjemahkan
-        return hasilArray.join(" ");
-    } catch (error) {
-        console.error("Gagal translasi:", error);
-        return teksAsli;
-    }
-}
-
-async function apakahLokal(data) {
-    let hasilTerjemahan = ""
-    if (data.isLokal) {
-        hasilTerjemahan = await terjemahkanHalaman(data.terjemahan);
-    } else {
-        hasilTerjemahan = data.terjemahan
-    }
-    outputTeks.innerHTML = hasilTerjemahan;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     window.go.main.App.Languages().then((data) => {
       library = data.languages;
       console.log("data : "+data.languages)
@@ -84,6 +28,14 @@ document.addEventListener("DOMContentLoaded", () => {
         sourceLang.value = src;
         destLang.value = dst;
     });
+
+    await window.go.main.App.CekKesiapan().then((data)=>{
+        if(data.status){
+            kembalikanInput(true);
+        }else{
+            kembalikanInput(false);
+        }
+    })
 });
 
 sourceLang.addEventListener("change", (e) => {
@@ -122,6 +74,20 @@ const observerGambar = new IntersectionObserver(
     },
 );
 
+function kembalikanInput(param = true){
+    if (param){
+        document.getElementById("drop-zone-text-1").innerText =
+            "File PDF di Sini";
+        document.getElementById("drop-zone-text-2").innerText =
+            "klik untuk memilih file";
+    }else{
+        document.getElementById("drop-zone-text-1").innerText =
+            "Gagal";
+        document.getElementById("drop-zone-text-2").innerText =
+            "Mesin ocr gagal dimuat";
+    }
+}
+
 function resetApp() {
     const fileInput = document.getElementById("file-input");
     if (fileInput) {
@@ -129,10 +95,7 @@ function resetApp() {
     }
 
     // Kembalikan teks asli drop zone
-    document.getElementById("drop-zone-text-1").innerText =
-        "Tarik & Lepas File PDF di Sini";
-    document.getElementById("drop-zone-text-2").innerText =
-        "atau klik untuk memilih file";
+    kembalikanInput(true);
 
     dropZone.style.display = "flex";
     pdfContainer.style.display = "none";
@@ -193,7 +156,7 @@ async function ambilTerjemahan(nomorHalaman) {
         );
 
         if (data && data.status === true) {
-            apakahLokal(data);
+            outputTeks.innerHTML = data.terjemahan;
         } else {
             outputTeks.innerHTML = `<span style="color:red;">Gagal: ${data.message || "Terjadi kesalahan sistem."}</span>`;
         }

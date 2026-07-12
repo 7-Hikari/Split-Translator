@@ -14,6 +14,18 @@ export namespace main {
 	        this.gambar_base64 = source["gambar_base64"];
 	    }
 	}
+	export class KesiapanResponse {
+	    status: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new KesiapanResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	    }
+	}
 	export class LanguagesResponse {
 	    status: boolean;
 	    languages: Record<string, string>;

@@ -10,6 +10,10 @@ export function AreSwitch(arg1, arg2) {
   return window['go']['main']['App']['AreSwitch'](arg1, arg2);
 }
 
+export function CekKesiapan() {
+  return window['go']['main']['App']['CekKesiapan']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }

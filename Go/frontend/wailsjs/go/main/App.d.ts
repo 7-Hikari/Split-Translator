@@ -6,6 +6,8 @@ export function AmbilHalaman(arg1:number):Promise<main.GambarResponse>;
 
 export function AreSwitch(arg1:string,arg2:string):Promise<void>;
 
+export function CekKesiapan():Promise<main.KesiapanResponse>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function Languages():Promise<main.LanguagesResponse>;

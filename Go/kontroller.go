@@ -3,6 +3,7 @@ package main
 import(
 	"bytes"
 	"encoding/base64"
+	"log"
 	"fmt"
 	"image/png"
 	"github.com/gen2brain/go-fitz"
@@ -28,11 +29,15 @@ func (k *Kontroller) AmbilGambar(nomorHalaman int)(string, error){
 	if k.docAktif == nil{return "", fmt.Errorf("tidak ada dokumen aktif")}
 
 	img, err := k.docAktif.Image(nomorHalaman - 1)
-	if err != nil{return "", fmt.Errorf("gambar halaman %d : %w", nomorHalaman, err)}
+	if err != nil{
+		log.Printf("gambar halaman %d : %w", nomorHalaman, err)
+		return "", fmt.Errorf("gambar halaman %d : %w", nomorHalaman, err)}
 
 	var buf bytes.Buffer
 	err = png.Encode(&buf, img)
-	if err !=nil{return "", fmt.Errorf("gagal encode %d ke png: %w", nomorHalaman, err)}
+	if err !=nil{
+		log.Printf("gagal encode %d ke png: %w", nomorHalaman, err)
+		return "", fmt.Errorf("gagal encode %d ke png: %w", nomorHalaman, err)}
 
 	encodedImg := base64.StdEncoding.EncodeToString(buf.Bytes())
 	return fmt.Sprintf("data:image/png;base64,%s", encodedImg),nil

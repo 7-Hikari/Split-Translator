@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"log"
 	"fmt"
 	_ "image/png"
+	"time"
 	"io"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strings"
 	"sync"
 )
@@ -19,6 +22,12 @@ type Service struct {
 
 func NewService() *Service {
 	return &Service{cache: make(map[int]string)}
+}
+
+type PythonResponse struct {
+	Status     bool   `json:"status"`
+	Terjemahan string `json:"terjemahan"`
+	Message    string `json:"message"`
 }
 
 func (s *Service) LogikaProsesHalaman(
@@ -33,25 +42,30 @@ func (s *Service) LogikaProsesHalaman(
 	s.cacheMutex.RUnlock()
 
 	if ctrl.docAktif == nil {
+		log.Printf("Tidak ada dokumen aktif")
 		return "", fmt.Errorf("Tidak ada dokumen aktif")
 	}
 
 	page, err := ctrl.docAktif.Text(nomorHal - 1)
 	if err != nil {
+		log.Printf("Gagal mengekstrak teks: %w", err)
 		return "", fmt.Errorf("Gagal mengekstrak teks: %w", err)
 	}
 
+	lokal := ctrl.IsLokal(src, dst, GoogleTr)
 	text := strings.TrimSpace(page)
 
 	if text == "" {
 		base64G, err := ctrl.AmbilGambar(nomorHal)
 
 		if err != nil {
+			log.Printf("gagal mengambil gambar halaman: %w", err)
 			return "", fmt.Errorf("gagal mengambil gambar halaman: %w", err)
 		}
 
-		text, err = s.jalankanWindowsOCR(base64G)
+		text, err = s.jalankanWindowsOCR(base64G, lokal)
 		if err != nil {
+			log.Printf("gagal memproses OCR: %w", err)
 			return "", fmt.Errorf("gagal memproses OCR: %w", err)
 		}
 		if strings.TrimSpace(text) == "" {
@@ -62,7 +76,7 @@ func (s *Service) LogikaProsesHalaman(
 	text = strings.ReplaceAll(text, "-\n", "")
 
 	var textTerjemahan string
-	if ctrl.IsLokal(src, dst, GoogleTr) {
+	if lokal {
 		textTerjemahan = text
 	} else {
 		if len(text) > 4500 {
@@ -71,6 +85,7 @@ func (s *Service) LogikaProsesHalaman(
 		var errTranslate error
 		textTerjemahan, errTranslate = s.translateViaGoogle(text, src, dst)
 		if errTranslate != nil {
+			log.Printf("Gagal translasi: %w", errTranslate)
 			return "", fmt.Errorf("Gagal translasi: %w", errTranslate)
 		}
 	}
@@ -82,12 +97,49 @@ func (s *Service) LogikaProsesHalaman(
 	return textTerjemahan, nil
 }
 
-func (s *Service) jalankanWindowsOCR(base64Gambar string) (string, error) {
-	if runtime.GOOS == "windows" {
-		// Kita panggil fungsi dari sub-folder lewat fungsi pembantu internal Go
-		return panggilOcrSecaraDinamis(base64Gambar)
+func (s *Service) CekKesiapanPy() (bool){
+	maxPercobaan := 10
+	jeda := 2 * time.Second
+
+for i := 0; i < maxPercobaan; i++ {
+		resp, err := http.Get("http://127.0.0.1:5000/cek")
+		if err == nil {
+			if resp.StatusCode == http.StatusOK {
+				resp.Body.Close()
+				return true
+			}
+			resp.Body.Close()
+		}
+		time.Sleep(jeda)
 	}
-	return "", fmt.Errorf("Windows OCR hanya dapat berjalan di sistem operasi Windows")
+	return false
+}
+
+func (s *Service) jalankanWindowsOCR(base64Gambar string, lokal bool) (string, error) {
+	stringData := base64Gambar
+	if strings.Contains(stringData, ","){stringData = strings.Split(stringData, ",")[1]}
+
+	binerGambar, err := base64.StdEncoding.DecodeString(stringData)
+	if err != nil {
+		log.Printf("gagal decode base64 gambar: %w", err)
+		return "", fmt.Errorf("gagal decode base64 gambar: %w", err)}
+
+	urlPython := fmt.Sprintf("http://127.0.0.1:5000/services?lokal=%t", lokal)
+
+	resp, err := http.Post(urlPython, "application/octet-stream", bytes.NewReader(binerGambar))
+	if err != nil{
+		log.Printf("gagal terhubung ke python service: %w", err)
+		return "", fmt.Errorf("gagal terhubung ke python service: %w", err)}
+
+	defer resp.Body.Close()
+	
+	var pyResp PythonResponse
+	if err := json.NewDecoder(resp.Body).Decode(&pyResp); err != nil {return "", fmt.Errorf("gagal membaca json python: %w", err)}
+	if !pyResp.Status {
+		log.Printf("error dari python: %s", pyResp.Message)
+		return "", fmt.Errorf("error dari python: %s", pyResp.Message)}
+
+	return pyResp.Terjemahan, nil
 }
 
 func (s *Service) translateViaGoogle(text string, src string, dst string) (string, error) {
@@ -121,6 +173,7 @@ func (s *Service) translateViaGoogle(text string, src string, dst string) (strin
 		return result.String(), nil
 	}
 
+	log.Printf("gagal memparsing data translasi")
 	return text, fmt.Errorf("gagal memparsing data translasi")
 }
 

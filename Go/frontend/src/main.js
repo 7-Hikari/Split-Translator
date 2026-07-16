@@ -11,6 +11,7 @@ let dst = "id";
 let halamanSekarang = 1;
 let isJumpingPage = false;
 let totalHalamanGlobal = 0;
+let siap = false;
 
 let library = null;
 
@@ -76,11 +77,13 @@ const observerGambar = new IntersectionObserver(
 
 function kembalikanInput(param = true){
     if (param){
+	siap = true;
         document.getElementById("drop-zone-text-1").innerText =
             "File PDF di Sini";
         document.getElementById("drop-zone-text-2").innerText =
             "klik untuk memilih file";
     }else{
+	siap = false;
         document.getElementById("drop-zone-text-1").innerText =
             "Gagal";
         document.getElementById("drop-zone-text-2").innerText =
@@ -173,6 +176,7 @@ const pdfContainer = document.getElementById("pdf-pages-container");
 
 // 1. Klik area drop-zone untuk buka file manager komputer
 dropZone.addEventListener("click", async () => {
+    if (siap === false) {return;}
     try {
         // Panggil fungsi di Go untuk memilih file dan memprosesnya langsung via path
         const data = await window.go.main.App.UploadPDF();
